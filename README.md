@@ -1,29 +1,12 @@
-# LightGBM sentence scorer vs NMF top-sentence summarizer (CNN/DailyMail, ROUGE-1 F1)
+# LightGBM sentence scorer vs NMF top-sentence summarizer (CNN/DailyMail)
 
-## Run
+Question: can a LightGBM sentence scorer trained on sentence features beat a per-document NMF sentence-selection baseline on ROUGE-1 F1?
 
-```
-pip install -r requirements.txt
-python analysis.py
-```
+Method is unchanged: article-level 70/30 split of about 700 CNN/DM test-split articles, greedy ROUGE-1 oracle labels, NMF top-sentence baseline vs LightGBM top-3 selection, seeds 42-44, 3-point grid searched with CV on training articles only.
 
-This writes `results.json` and `figures/rouge1_bar.png`.
+Data-source fix: the `ccdv/cnn_dailymail` configs `default` and `3.0.0` both returned 404 from the datasets-server. The script now falls back to `abisee/cnn_dailymail` config `3.0.0`, which contains the same CNN/DailyMail 3.0.0 articles. The source actually used is recorded in `results.json`.
 
-## Fix applied
-
-The previous run crashed with HTTP 404 when fetching the test split from the
-datasets-server, because the config name `3.0.0` does not exist for
-`ccdv/cnn_dailymail`. `fetch_rows` now tries the config names `default` and then
-`3.0.0`, and uses the first one that returns data. The dataset, split, baseline,
-improved model, evaluation code and test split are unchanged.
-
-## Method
-
-- Data: about 700 articles from the CNN/DailyMail test split, split 70/30 at the article level (seed 42).
-- Baseline: per-document NMF on a TF-IDF sentence-term matrix. It picks the top-weighted sentence per topic, then fills up to 3 sentences by total weight.
-- Improved: LightGBM trained on greedy ROUGE-1 oracle labels, using sentence features. It selects the 3 sentences with the highest predicted probability.
-- Hyper-parameters are chosen by 3-fold CV on training articles only.
-- Metric: ROUGE-1 F1 on the held-out articles, averaged over seeds 42–44.
+Run: `python analysis.py` (CPU only, well under 20 minutes). Writes `results.json` and `figures/rouge1_bar.png`.
 
 ## Reference
 
