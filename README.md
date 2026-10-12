@@ -1,23 +1,29 @@
-# NMF Baseline vs LightGBM Sentence Scorer for News Summarization
+# LightGBM sentence scorer vs NMF top-sentence summarizer (CNN/DailyMail, ROUGE-1 F1)
 
-Interpretable extractive summarization methods based on matrix factorization, such as the simplicial NMF approach in "An interpretable method for text summarization based on simplicial non-negative matrix factorization" (2014), pick sentences using topic structure that a reader can inspect. A standard per-document NMF selector is a simple version of this idea. This experiment asks whether a supervised sentence scorer that uses NMF topic loadings as features can outperform that selector.
+## Run
 
-**Question:** Can a LightGBM sentence scorer trained on sentence features beat a standard per-document NMF sentence-selection summarizer on ROUGE-1 F1 for CNN/DailyMail news articles?
-
-**Dataset:** CNN/DailyMail 3.0.0 (`ccdv/cnn_dailymail`), test-split rows fetched from the Hugging Face datasets-server API. This is not the paper's own dataset (`same_as_paper: false`).
-
-**Baseline:** per-document NMF on the TF-IDF sentence-term matrix. It picks the top-weighted sentence for each of 3 topics and selects 3 sentences. This is a stand-in for simplicial NMF, not a faithful reimplementation.
-
-**Improved model:** a LightGBM classifier on sentence features (position, length, TF-IDF centrality, per-document NMF topic loadings), trained on greedy ROUGE-1 oracle labels. It selects the 3 highest-probability sentences. Both methods share the same sentences, vocabulary, and ROUGE code.
-
-## How to run
-
-```bash
+```
 pip install -r requirements.txt
 python analysis.py
 ```
 
-Results are written to `results.json` (and `figures/rouge1_bar.png`).
+This writes `results.json` and `figures/rouge1_bar.png`.
+
+## Fix applied
+
+The previous run crashed with HTTP 404 when fetching the test split from the
+datasets-server, because the config name `3.0.0` does not exist for
+`ccdv/cnn_dailymail`. `fetch_rows` now tries the config names `default` and then
+`3.0.0`, and uses the first one that returns data. The dataset, split, baseline,
+improved model, evaluation code and test split are unchanged.
+
+## Method
+
+- Data: about 700 articles from the CNN/DailyMail test split, split 70/30 at the article level (seed 42).
+- Baseline: per-document NMF on a TF-IDF sentence-term matrix. It picks the top-weighted sentence per topic, then fills up to 3 sentences by total weight.
+- Improved: LightGBM trained on greedy ROUGE-1 oracle labels, using sentence features. It selects the 3 sentences with the highest predicted probability.
+- Hyper-parameters are chosen by 3-fold CV on training articles only.
+- Metric: ROUGE-1 F1 on the held-out articles, averaged over seeds 42–44.
 
 ## Reference
 

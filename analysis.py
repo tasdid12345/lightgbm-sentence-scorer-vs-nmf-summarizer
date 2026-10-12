@@ -20,18 +20,28 @@ K_TOPICS = 3            # NMF topics per document
 N_PICK = 3              # sentences per summary
 MAX_ORACLE = 4          # max positive sentences per article in the greedy oracle
 API = "https://datasets-server.huggingface.co/rows"
-DS = dict(dataset="ccdv/cnn_dailymail", config="3.0.0", split="test")
+DATASET = "ccdv/cnn_dailymail"
+# The repo's config names differ from the old "3.0.0" name; try each in turn.
+# Both point at the same CNN/DailyMail 3.0.0 test articles.
+CONFIGS = ["default", "3.0.0"]
 GRID = [dict(num_leaves=7, n_estimators=100), dict(num_leaves=15, n_estimators=200),
         dict(num_leaves=31, n_estimators=300)]
 
 
-def fetch_rows(n):
-    """Fetch n rows from the datasets-server API (100 per request), retry on 429/5xx."""
+class _NotFound(Exception):
+    pass
+
+
+def _fetch_config(n, config):
+    """Fetch n rows of the test split for one config (100 per request), retry on 429/5xx."""
     rows, off = [], 0
     while len(rows) < n:
-        params = {**DS, "offset": off, "length": min(100, n - len(rows))}
+        params = dict(dataset=DATASET, config=config, split="test",
+                      offset=off, length=min(100, n - len(rows)))
         for attempt in range(6):
             r = requests.get(API, params=params, timeout=60)
+            if r.status_code == 404:
+                raise _NotFound(config)
             if r.status_code == 429 or r.status_code >= 500:
                 time.sleep(2 ** attempt)
                 continue
@@ -44,8 +54,18 @@ def fetch_rows(n):
             break
         rows += batch
         off += len(batch)
-        print(f"fetched {len(rows)} rows")
+        print(f"fetched {len(rows)} rows (config={config})")
     return rows[:n]
+
+
+def fetch_rows(n):
+    """Fetch n test-split rows, falling back to the next config name on 404."""
+    for config in CONFIGS:
+        try:
+            return _fetch_config(n, config)
+        except _NotFound:
+            print(f"config '{config}' not found for {DATASET}; trying next")
+    raise RuntimeError(f"no working config among {CONFIGS} for {DATASET}")
 
 
 def split_sents(text):
@@ -229,7 +249,8 @@ def main():
                   "Split is 70/30 of ~700 articles rather than exactly 400/200 to satisfy the 20-30% test-size rule. "
                   "Articles come from the CNN/DM test split, not the paper's dataset. "
                   "Baseline is a stand-in for simplicial NMF. Std is population std over 3 seeds. "
-                  "Only a 3-point hyper-parameter grid was searched, using CV on training articles."),
+                  "Only a 3-point hyper-parameter grid was searched, using CV on training articles. "
+                  "Dataset config name is resolved at runtime (tries 'default', then '3.0.0') because the 3.0.0 config name returned 404."),
     }
     with open("results.json", "w", encoding="utf-8") as f:
         json.dump(res, f, indent=2, ensure_ascii=False)
