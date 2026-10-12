@@ -1,0 +1,30 @@
+{
+  "question": "Can a LightGBM sentence scorer trained on sentence features beat a standard per-document NMF sentence-selection summarizer on ROUGE-1 F1 for CNN/DailyMail news articles?",
+  "method": "Articles from CNN/DM 3.0.0 test split via datasets-server; article-level train/test split; greedy ROUGE-1 oracle labels; per-document NMF top-sentence baseline vs LightGBM top-3 probability selection; ROUGE-1 F1 on test; seeds 42-44.",
+  "dataset": {
+    "name": "CNN/DailyMail 3.0.0 (abisee/cnn_dailymail, config 3.0.0, test split rows)",
+    "source_url": "https://huggingface.co/datasets/abisee/cnn_dailymail",
+    "n_rows": 700,
+    "n_train": 490,
+    "n_test": 210,
+    "same_as_paper": false,
+    "baseline_is_papers_method": false
+  },
+  "metric_name": "ROUGE-1 F1 (mean over test articles, vs reference highlights)",
+  "higher_is_better": true,
+  "baseline": "Per-document NMF on TF-IDF sentence-term matrix; pick top-weighted sentence per topic (3 topics, 3 sentences). Stand-in for simplicial NMF, not a faithful reimplementation.",
+  "improved": "LightGBM classifier on sentence features (position, length, TF-IDF centrality, per-document NMF topic loadings) trained on greedy ROUGE-1 oracle labels; selects 3 highest-probability sentences.",
+  "metrics": {
+    "baseline_score": 0.2591339676439421,
+    "improved_score": 0.30247152443798714,
+    "improvement": 0.04333755679404505,
+    "baseline_score_std": 0.0016588995066180439,
+    "improved_score_std": 0.002559497591678521,
+    "baseline_rouge2_f1": 0.07481710094839907,
+    "improved_rouge2_f1": 0.11939180461446557,
+    "improvement_rouge2_f1": 0.0445747036660665,
+    "cv_best_rouge1": 0.2940691003426356,
+    "selected_num_leaves": 7
+  },
+  "notes": "Single run of data split (seed 42); seeds 42-44 vary NMF init and LightGBM. Split is 70/30 of ~700 articles rather than exactly 400/200 to satisfy the 20-30% test-size rule. Articles come from the CNN/DM test split (abisee/cnn_dailymail, config 3.0.0), not the paper's dataset. Baseline is a stand-in for simplicial NMF. Std is population std over 3 seeds. Only a 3-point hyper-parameter grid was searched, using CV on training articles. Dataset source is resolved at runtime: ccdv/cnn_dailymail configs 'default' and '3.0.0' returned 404 on the datasets-server, so it falls back to abisee/cnn_dailymail 3.0.0 (same articles)."
+}
